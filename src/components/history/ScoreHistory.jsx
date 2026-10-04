@@ -1,124 +1,118 @@
 import React, { useState, useEffect } from "react";
 import "../../styles/history.css";
+import { useLanguage } from "../../context/LanguageContext";
 
-// IMPORT SERVICES 
+// IMPORT SERVICES
 import { getScoreHistory } from "../../services/userService";
 
+const FILTERS = ["1M", "3M", "1A", "TOUT"];
 
-const ScoreHistory = ({user}) => {
-  const [activeFilter, setActiveFilter] = useState("TOUT");
+const ScoreHistory = ({ user }) => {
+  const { lang, t } = useLanguage();
 
-  const filters = ["1M", "3M", "1A", "TOUT"];
-  const [selectedRange, setSelectedRange] = useState("1M");
+  const [selectedRange, setSelectedRange] = useState("TOUT");
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-  if (!user?.id) return;
+    if (!user?.id) return;
 
-  const loadScoreHistory = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const loadScoreHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const data = await getScoreHistory(user?.id, selectedRange);
+        const data = await getScoreHistory(user?.id, selectedRange);
 
-      setHistory(data);
-    } catch (err) {
-      console.error("Error loading score history:", err);
-      setError(err);
-      setHistory([]);
-    } finally {
-      setLoading(false);
-    }
+        setHistory(data);
+      } catch (err) {
+        console.error("Error loading score history:", err);
+        setError(err);
+        setHistory([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadScoreHistory();
+  }, [user?.id, selectedRange]);
+
+  const dateLocale = lang === "en" ? "en-GB" : "fr-FR";
+
+  const chartData = history.map((item) => ({
+    score: Number(item.score),
+    recordedAt: new Date(item.recorded_at),
+  }));
+
+  const latestScore =
+    chartData.length > 0 ? chartData[chartData.length - 1].score : null;
+
+  const previousScore =
+    chartData.length > 1 ? chartData[chartData.length - 2].score : null;
+
+  const scoreChange =
+    latestScore !== null && previousScore !== null
+      ? latestScore - previousScore
+      : null;
+
+  const scoreChangeLabel =
+    scoreChange === null
+      ? "—"
+      : `${scoreChange >= 0 ? "+" : ""}${scoreChange.toFixed(2)}`;
+
+  const chartWidth = 605;
+  const chartHeight = 180;
+
+  const minScore = 1;
+  const maxScore = 5;
+
+  const getY = (score) => {
+    const normalized = (score - minScore) / (maxScore - minScore);
+    return 200 - normalized * chartHeight;
   };
 
-  loadScoreHistory();
-}, [user?.id, selectedRange]);
+  const getX = (index) => {
+    if (chartData.length <= 1) {
+      return 10;
+    }
 
-const chartData = history.map((item) => ({
-  score: Number(item.score),
-  recordedAt: new Date(item.recorded_at),
-}));
+    return 10 + (index / (chartData.length - 1)) * chartWidth;
+  };
 
-const latestScore =
-  chartData.length > 0
-    ? chartData[chartData.length - 1].score
-    : null;
+  const chartPoints = chartData.map((item, index) => ({
+    x: getX(index),
+    y: getY(item.score),
+    score: item.score,
+    date: item.recordedAt,
+  }));
 
-const previousScore =
-  chartData.length > 1
-    ? chartData[chartData.length - 2].score
-    : null;
+  const linePath = chartPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
 
-const scoreChange =
-  latestScore !== null && previousScore !== null
-    ? latestScore - previousScore
-    : null;
-
-const scoreChangeLabel =
-  scoreChange === null
-    ? "—"
-    : `${scoreChange >= 0 ? "+" : ""}${scoreChange.toFixed(2)}`;
-
-
-
-const chartWidth = 605;
-const chartHeight = 180;
-
-const minScore = 1;
-const maxScore = 5;
-
-const getY = (score) => {
-  const normalized =
-    (score - minScore) / (maxScore - minScore);
-
-  return 200 - normalized * chartHeight;
-};
-
-const getX = (index) => {
-  if (chartData.length <= 1) {
-    return 10;
-  }
-
-  return (
-    10 +
-    (index / (chartData.length - 1)) * chartWidth
-  );
-};
-
-const chartPoints = chartData.map((item, index) => ({
-  x: getX(index),
-  y: getY(item.score),
-  score: item.score,
-  date: item.recordedAt,
-}));
-
-const linePath = chartPoints
-  .map((point, index) => {
-    return `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`;
-  })
-  .join(" ");
-
-const areaPath =
-  chartPoints.length > 0
-    ? `
+  const areaPath =
+    chartPoints.length > 0
+      ? `
       ${linePath}
       L ${chartPoints[chartPoints.length - 1].x} 200
       L ${chartPoints[0].x} 200
       Z
     `
-    : "";
+      : "";
 
+  const formatDate = (date) =>
+    date.toLocaleDateString(dateLocale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
 
   return (
     <section className="section-card" id="historique">
-
       {/* HEADER */}
       <div className="history-header">
         <div className="history-header-left">
-
           <div className="section-icon-wrapper">
             <svg
               width="26"
@@ -139,14 +133,11 @@ const areaPath =
 
           <div className="history-title-group">
             <h3 className="box-main-title title-with-orange-line">
-              Historique de mes scores
+              {t("history.title")}
             </h3>
 
-            <p>
-              Suivez l’évolution de votre score global dans le temps.
-            </p>
+            <p>{t("history.subtitle")}</p>
           </div>
-
         </div>
 
         {/* SCORE CHANGE */}
@@ -180,30 +171,17 @@ const areaPath =
 
           {scoreChangeLabel}
         </div>
-
       </div>
 
       {/* CHART */}
       <div className="chart-box-frame">
         {!loading && !error && history.length === 0 && (
-          <div className="history-empty-state">
-            Aucun historique de score disponible pour cette période.
-          </div>
+          <div className="history-empty-state">{t("history.empty")}</div>
         )}
 
-        {loading && (
-          <div className="history-loading">
-            Chargement de l'historique...
-          </div>
-        )}
+        {loading && <div className="history-loading">{t("history.loading")}</div>}
 
-        {error && (
-          <div className="history-error">
-            Impossible de charger l'historique des scores.
-          </div>
-        )}
-
-
+        {error && <div className="history-error">{t("history.error")}</div>}
 
         <svg
           className="chart-svg-container"
@@ -211,13 +189,7 @@ const areaPath =
           preserveAspectRatio="none"
         >
           <defs>
-
-            <pattern
-              id="grid"
-              width="700"
-              height="42"
-              patternUnits="userSpaceOnUse"
-            >
+            <pattern id="grid" width="700" height="42" patternUnits="userSpaceOnUse">
               <line
                 x1="0"
                 y1="0"
@@ -229,94 +201,37 @@ const areaPath =
               />
             </pattern>
 
-            <linearGradient
-              id="blueGradient"
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop
-                offset="0%"
-                stopColor="#2563eb"
-                stopOpacity="0.25"
-              />
-
-              <stop
-                offset="100%"
-                stopColor="#2563eb"
-                stopOpacity="0.0"
-              />
+            <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
             </linearGradient>
-
           </defs>
 
           {/* GRID */}
-          <rect
-            width="640"
-            height="210"
-            fill="url(#grid)"
-          />
+          <rect width="640" height="210" fill="url(#grid)" />
 
           {/* Y-AXIS VALUES */}
-          <text
-            x="670"
-            y="15"
-            className="chart-date-label"
-            fontSize="13"
-            fill="#64748b"
-          >
-            5.0
-          </text>
-
-          <text
-            x="670"
-            y="60"
-            className="chart-date-label"
-            fontSize="13"
-            fill="#64748b"
-          >
-            4.0
-          </text>
-
-          <text
-            x="670"
-            y="105"
-            className="chart-date-label"
-            fontSize="13"
-            fill="#64748b"
-          >
-            3.0
-          </text>
-
-          <text
-            x="670"
-            y="150"
-            className="chart-date-label"
-            fontSize="13"
-            fill="#64748b"
-          >
-            2.0
-          </text>
-
-          <text
-            x="670"
-            y="195"
-            className="chart-date-label"
-            fontSize="13"
-            fill="#64748b"
-          >
-            1.0
-          </text>
+          {[
+            { y: 15, label: "5.0" },
+            { y: 60, label: "4.0" },
+            { y: 105, label: "3.0" },
+            { y: 150, label: "2.0" },
+            { y: 195, label: "1.0" },
+          ].map((tick) => (
+            <text
+              key={tick.label}
+              x="670"
+              y={tick.y}
+              className="chart-date-label"
+              fontSize="13"
+              fill="#64748b"
+            >
+              {tick.label}
+            </text>
+          ))}
 
           {/* AREA */}
-          {chartPoints.length > 0 && (
-            <path
-              d={areaPath}
-              fill="url(#blueGradient)"
-            />
-          )}
-
+          {chartPoints.length > 0 && <path d={areaPath} fill="url(#blueGradient)" />}
 
           {/* LINE */}
           {chartPoints.length > 0 && (
@@ -330,7 +245,6 @@ const areaPath =
             />
           )}
 
-
           {/* CURRENT POINT */}
           {chartPoints.length > 0 && (
             <circle
@@ -342,61 +256,34 @@ const areaPath =
               strokeWidth="2.5"
             />
           )}
-
-
         </svg>
 
         {/* DATES */}
         <div className="chart-dates-row">
           {chartPoints.length > 0 && (
             <>
-              <span className="chart-date-label">
-                {chartPoints[0].date.toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
+              <span className="chart-date-label">{formatDate(chartPoints[0].date)}</span>
 
               <span className="chart-date-label">
-                {chartPoints[chartPoints.length - 1].date.toLocaleDateString(
-                  "fr-FR",
-                  {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  }
-                )}
+                {formatDate(chartPoints[chartPoints.length - 1].date)}
               </span>
             </>
           )}
         </div>
-
-
       </div>
 
       {/* FILTER BUTTONS */}
       <div className="filter-buttons-row">
-
-        {filters.map((filter) => (
+        {FILTERS.map((filter) => (
           <button
             key={filter}
-            className={`time-filter-btn ${
-              activeFilter === filter ? "active" : ""
-            }`}
-            onClick={
-            () => {
-              setActiveFilter(filter)
-              setSelectedRange(filter);
-            }
-            }
+            className={`time-filter-btn ${selectedRange === filter ? "active" : ""}`}
+            onClick={() => setSelectedRange(filter)}
           >
-            {filter}
+            {t(`history.filters.${filter}`)}
           </button>
         ))}
-
       </div>
-
     </section>
   );
 };

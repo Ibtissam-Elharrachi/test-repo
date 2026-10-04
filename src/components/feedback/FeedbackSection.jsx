@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLanguage } from "../../context/LanguageContext";
 
 // IMPORT SERVICES
 import {
@@ -8,7 +9,53 @@ import {
 } from "../../services/feedbackService";
 import { searchCollaborators } from "../../services/userService";
 
+function SecureFooter({ style }) {
+  const { t } = useLanguage();
+
+  return (
+    <div className="feedback-footer-row" style={style}>
+      <div className="security-note">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#0066cc"
+          strokeWidth="2"
+        >
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <span>{t("feedback.secure")}</span>
+      </div>
+
+      <div className="teams-branding">
+        <svg className="teams-official-logo" viewBox="0 0 48 48" fill="none">
+          <path
+            d="M37 12C37 10.34 35.66 9 34 9H24C22.34 9 21 10.34 21 12V36C21 37.66 22.34 39 24 39H34C35.66 39 37 37.66 37 36V12Z"
+            fill="#5059C9"
+          />
+          <circle cx="34" cy="14" r="3" fill="#7B83EB" />
+          <path
+            d="M43 17C43 15.9 42.1 15 41 15H37V33H41C42.1 33 43 32.1 43 31V17Z"
+            fill="#4B53BC"
+          />
+          <circle cx="39" cy="18" r="2" fill="#7B83EB" />
+          <path
+            d="M23 9H9C7.34 9 6 10.34 6 12V36C6 37.66 7.34 39 9 39H23V9Z"
+            fill="#3F46A4"
+          />
+          <path d="M12 18H20V21H17.5V30H14.5V21H12V18Z" fill="white" />
+        </svg>
+        <span>Teams</span>
+      </div>
+    </div>
+  );
+}
+
 function FeedbackSection() {
+  const { t } = useLanguage();
+
   const [step, setStep] = useState("choice");
   const [feedbackType, setFeedbackType] = useState(null);
   const [sentiment, setSentiment] = useState(null);
@@ -17,7 +64,7 @@ function FeedbackSection() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FEEDBACK COLLQBORQTORS SEARCH STATE
+  // FEEDBACK COLLABORATORS SEARCH STATE
   const [users, setUsers] = useState([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [userSearchError, setUserSearchError] = useState(null);
@@ -57,7 +104,6 @@ function FeedbackSection() {
     setSelectedUser(user);
     setSearchValue(user.full_name);
     setUsers([]);
-
     setUserSearchError(null);
   };
 
@@ -81,14 +127,12 @@ function FeedbackSection() {
         setUserSearchError(null);
 
         const collaborators = await searchCollaborators(value);
-        console.log("Collaborators returned:", collaborators);
-
         setUsers(collaborators);
       } catch (error) {
         console.error("Erreur lors de la recherche des collaborateurs:", error);
 
         setUsers([]);
-        setUserSearchError("Impossible de rechercher les collaborateurs.");
+        setUserSearchError("error");
       } finally {
         setIsSearchingUsers(false);
       }
@@ -102,23 +146,20 @@ function FeedbackSection() {
   // CREATE NEW FEEDBACK
   const sendFeedback = async () => {
     if (!feedbackText.trim()) {
-      alert("Veuillez écrire votre feedback.");
+      alert(t("feedback.alertWrite"));
       return;
     }
 
     if (!sentiment) {
-      alert("Veuillez sélectionner votre sentiment.");
+      alert(t("feedback.alertSentiment"));
       return;
     }
 
     if (!selectedUser) {
-      alert("Veuillez sélectionner un destinataire.");
+      alert(t("feedback.alertRecipient"));
       return;
     }
 
-    /*
-     * SUPABASE FEEDBACK SCOPE
-     */
     try {
       setIsSubmitting(true);
 
@@ -129,7 +170,7 @@ function FeedbackSection() {
         sentiment: sentimentMap[sentiment],
       });
 
-      alert("Votre feedback a été envoyé avec succès.");
+      alert(t("feedback.alertSent"));
 
       setFeedbackText("");
       setSentiment(null);
@@ -139,35 +180,25 @@ function FeedbackSection() {
     } catch (error) {
       console.error("Erreur lors de l'envoi du feedback:", error);
 
-      alert(
-        error.message || "Une erreur est survenue lors de l'envoi du feedback.",
-      );
+      alert(error.message || t("feedback.alertError"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const departmentOf = (user) =>
+    user?.department_name || user?.departments?.name || t("feedback.noDepartment");
+
   return (
     <div className="section-card" id="donner-feedback">
-      {/* ========================================================= */}
-      {/* ÉTAPE 1 : CHOIX DU TYPE DE FEEDBACK                       */}
-      {/* ========================================================= */}
-
+      {/* ÉTAPE 1 : CHOIX DU TYPE DE FEEDBACK */}
       {step === "choice" && (
-        <div
-          id="feedbackStepChoice"
-          className="feedback-type-selection-container"
-        >
+        <div id="feedbackStepChoice" className="feedback-type-selection-container">
           <div className="feedback-selection-header">
             <button
               className="back-btn-circle"
-              title="Retour"
-              onClick={() =>
-                window.scrollTo({
-                  top: 0,
-                  behavior: "smooth",
-                })
-              }
+              title={t("feedback.back")}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             >
               <svg width="12" height="18" viewBox="0 0 10 16" fill="none">
                 <path
@@ -181,12 +212,12 @@ function FeedbackSection() {
             </button>
 
             <div className="type-title-block">
-              <h2>Quel type de feedback souhaitez-vous donner ?</h2>
+              <h2>{t("feedback.typeTitle")}</h2>
 
               <p>
-                Votre feedback aide à valoriser les réussites
+                {t("feedback.typeSubtitle1")}
                 <br />
-                et à identifier les axes d’amélioration.
+                {t("feedback.typeSubtitle2")}
               </p>
             </div>
           </div>
@@ -207,11 +238,8 @@ function FeedbackSection() {
                     stroke="#22c55e"
                     strokeWidth="7"
                   />
-
                   <circle cx="34" cy="38" r="5" fill="#22c55e" />
-
                   <circle cx="66" cy="38" r="5" fill="#22c55e" />
-
                   <path
                     d="M 30 60 Q 50 80 70 60"
                     fill="none"
@@ -219,25 +247,13 @@ function FeedbackSection() {
                     strokeWidth="7"
                     strokeLinecap="round"
                   />
-
-                  <path
-                    d="M 75 22 L 78 15 L 85 12 L 78 9 L 75 2 Z"
-                    fill="#38bdf8"
-                  />
-
-                  <path
-                    d="M 22 28 L 24 23 L 29 21 L 24 19 L 22 14 Z"
-                    fill="#38bdf8"
-                  />
+                  <path d="M 75 22 L 78 15 L 85 12 L 78 9 L 75 2 Z" fill="#38bdf8" />
+                  <path d="M 22 28 L 24 23 L 29 21 L 24 19 L 22 14 Z" fill="#38bdf8" />
                 </svg>
               </div>
 
-              <div className="choice-title positif">Feedback positif</div>
-
-              <div className="choice-desc">
-                Valoriser un bon travail, une collaboration ou une attitude.
-              </div>
-
+              <div className="choice-title positif">{t("feedback.positiveTitle")}</div>
+              <div className="choice-desc">{t("feedback.positiveDesc")}</div>
               <div className="choice-arrow-btn positif">→</div>
             </div>
 
@@ -262,72 +278,17 @@ function FeedbackSection() {
                 </svg>
               </div>
 
-              <div className="choice-title amelioration">
-                Axe d’amélioration
-              </div>
-
-              <div className="choice-desc">
-                Aider à progresser en partageant un point à améliorer.
-              </div>
-
+              <div className="choice-title amelioration">{t("feedback.improveTitle")}</div>
+              <div className="choice-desc">{t("feedback.improveDesc")}</div>
               <div className="choice-arrow-btn amelioration">→</div>
             </div>
           </div>
 
-          {/* FOOTER */}
-          <div className="feedback-footer-row" style={{ marginTop: "10px" }}>
-            <div className="security-note">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#0066cc"
-                strokeWidth="2"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <span>Connecté à Microsoft Teams • Sécurisé et confidentiel</span>
-            </div>
-            <div className="teams-branding">
-              <svg
-                className="teams-official-logo"
-                viewBox="0 0 48 48"
-                fill="none"
-              >
-                <path
-                  d="M37 12C37 10.34 35.66 9 34 9H24C22.34 9 21 10.34 21 12V36C21 37.66 22.34 39 24 39H34C35.66 39 37 37.66 37 36V12Z"
-                  fill="#5059C9"
-                />
-
-                <circle cx="34" cy="14" r="3" fill="#7B83EB" />
-
-                <path
-                  d="M43 17C43 15.9 42.1 15 41 15H37V33H41C42.1 33 43 32.1 43 31V17Z"
-                  fill="#4B53BC"
-                />
-
-                <circle cx="39" cy="18" r="2" fill="#7B83EB" />
-
-                <path
-                  d="M23 9H9C7.34 9 6 10.34 6 12V36C6 37.66 7.34 39 9 39H23V9Z"
-                  fill="#3F46A4"
-                />
-
-                <path d="M12 18H20V21H17.5V30H14.5V21H12V18Z" fill="white" />
-              </svg>
-              <span>Teams</span>
-            </div>
-          </div>
+          <SecureFooter style={{ marginTop: "10px" }} />
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* ÉTAPE 2 : FORMULAIRE                                      */}
-      {/* ========================================================= */}
-
+      {/* ÉTAPE 2 : FORMULAIRE */}
       {step === "form" && (
         <div id="feedbackStepForm">
           {/* HEADER */}
@@ -336,7 +297,7 @@ function FeedbackSection() {
               <button
                 className="back-btn-circle"
                 onClick={resetToChoiceStep}
-                title="Changer le type de feedback"
+                title={t("feedback.changeType")}
               >
                 <svg width="12" height="18" viewBox="0 0 10 16" fill="none">
                   <path
@@ -351,8 +312,8 @@ function FeedbackSection() {
 
               <h3 className="box-main-title title-with-orange-line">
                 {feedbackType === "positif"
-                  ? "Feedback positif"
-                  : "Axe d’amélioration"}
+                  ? t("feedback.positiveTitle")
+                  : t("feedback.improveTitle")}
               </h3>
             </div>
 
@@ -366,7 +327,7 @@ function FeedbackSection() {
             <textarea
               className="feedback-textarea"
               id="feedbackText"
-              placeholder="Écrivez votre retour ici..."
+              placeholder={t("feedback.placeholder")}
               value={feedbackText}
               onChange={(event) => setFeedbackText(event.target.value)}
             />
@@ -374,7 +335,8 @@ function FeedbackSection() {
             <button
               className="send-btn-icon"
               onClick={sendFeedback}
-              title="Envoyer"
+              disabled={isSubmitting}
+              title={t("feedback.send")}
             >
               <svg width="26" height="26" viewBox="0 0 24 24" fill="#0066cc">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -383,7 +345,7 @@ function FeedbackSection() {
           </div>
 
           {/* SENTIMENT */}
-          <div className="sentiment-question">Comment vous sentez-vous ?</div>
+          <div className="sentiment-question">{t("feedback.feeling")}</div>
 
           <div className="sentiment-options">
             {/* SATISFAIT */}
@@ -395,19 +357,9 @@ function FeedbackSection() {
             >
               <div className="emoji-svg-wrapper">
                 <svg width="48" height="48" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="44"
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="7"
-                  />
-
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="#22c55e" strokeWidth="7" />
                   <circle cx="34" cy="38" r="5" fill="#22c55e" />
-
                   <circle cx="66" cy="38" r="5" fill="#22c55e" />
-
                   <path
                     d="M 30 60 Q 50 82 70 60"
                     fill="none"
@@ -417,7 +369,7 @@ function FeedbackSection() {
                   />
                 </svg>
               </div>
-              <span className="sentiment-label">Satisfait</span>
+              <span className="sentiment-label">{t("feedback.satisfied")}</span>
             </div>
 
             {/* NEUTRE */}
@@ -429,19 +381,9 @@ function FeedbackSection() {
             >
               <div className="emoji-svg-wrapper">
                 <svg width="48" height="48" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="44"
-                    fill="none"
-                    stroke="#0284c7"
-                    strokeWidth="7"
-                  />
-
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="#0284c7" strokeWidth="7" />
                   <circle cx="34" cy="38" r="5" fill="#0284c7" />
-
                   <circle cx="66" cy="38" r="5" fill="#0284c7" />
-
                   <line
                     x1="30"
                     y1="65"
@@ -453,7 +395,7 @@ function FeedbackSection() {
                   />
                 </svg>
               </div>
-              <span className="sentiment-label">Neutre</span>
+              <span className="sentiment-label">{t("feedback.neutral")}</span>
             </div>
 
             {/* À AMÉLIORER */}
@@ -465,19 +407,9 @@ function FeedbackSection() {
             >
               <div className="emoji-svg-wrapper">
                 <svg width="48" height="48" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="44"
-                    fill="none"
-                    stroke="#ec4899"
-                    strokeWidth="7"
-                  />
-
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="#ec4899" strokeWidth="7" />
                   <circle cx="34" cy="38" r="5" fill="#ec4899" />
-
                   <circle cx="66" cy="38" r="5" fill="#ec4899" />
-
                   <path
                     d="M 30 68 Q 50 48 70 68"
                     fill="none"
@@ -487,15 +419,12 @@ function FeedbackSection() {
                   />
                 </svg>
               </div>
-
-              <span className="sentiment-label">À améliorer</span>
+              <span className="sentiment-label">{t("feedback.improve")}</span>
             </div>
           </div>
 
           {/* RECIPIENT QUESTION */}
-          <div className="sentiment-question">
-            À qui souhaitez-vous envoyer votre feedback ?
-          </div>
+          <div className="sentiment-question">{t("feedback.recipientQuestion")}</div>
 
           <div className="recipient-section">
             {/* SEARCH */}
@@ -503,7 +432,6 @@ function FeedbackSection() {
               <div className="smart-search-input-container">
                 <svg className="search-icon-small" viewBox="0 0 24 24">
                   <circle cx="11" cy="11" r="7" />
-
                   <line x1="16" y1="16" x2="21" y2="21" />
                 </svg>
 
@@ -511,7 +439,7 @@ function FeedbackSection() {
                   type="text"
                   id="targetUserSearch"
                   className="smart-search-input"
-                  placeholder="Chercher par prénom (ex: Sara)..."
+                  placeholder={t("feedback.searchPlaceholder")}
                   value={searchValue}
                   onChange={(event) => handleSmartSearch(event.target.value)}
                 />
@@ -522,19 +450,16 @@ function FeedbackSection() {
               </div>
 
               {isSearchingUsers && (
-                <div className="search-loading">Recherche en cours...</div>
+                <div className="search-loading">{t("feedback.searching")}</div>
               )}
 
               {userSearchError && (
-                <div className="search-error">{userSearchError}</div>
+                <div className="search-error">{t("feedback.searchError")}</div>
               )}
 
               {/* AUTOCOMPLETE */}
               {searchValue.trim() && users.length > 0 && !selectedUser && (
-                <div
-                  className="autocomplete-results"
-                  id="searchResultsDropdown"
-                >
+                <div className="autocomplete-results" id="searchResultsDropdown">
                   {users.map((user) => (
                     <button
                       type="button"
@@ -553,14 +478,8 @@ function FeedbackSection() {
 
                       <div className="autocomplete-user-info">
                         <strong>{user.full_name}</strong>
-
                         <span>{user.email}</span>
-
-                        <small>
-                          {user.department_name ||
-                            user.departments?.name ||
-                            "Département non renseigné"}
-                        </small>
+                        <small>{departmentOf(user)}</small>
                       </div>
                     </button>
                   ))}
@@ -582,38 +501,26 @@ function FeedbackSection() {
 
             {/* SELECTED USER */}
             <div
-              className={`selected-user-card ${
-                selectedUser ? "has-user" : "empty"
-              }`}
+              className={`selected-user-card ${selectedUser ? "has-user" : "empty"}`}
               id="selectedUserCard"
             >
               <div className="user-avatar-wrapper">
                 <img
-                  src={
-                    selectedUser?.avatar_url ||
-                    "/icone compte femme.png"
-                  }
-                  alt={selectedUser?.full_name || "Utilisateur sélectionné"}
+                  src={selectedUser?.avatar_url || "/icone compte femme.png"}
+                  alt={selectedUser?.full_name || t("feedback.selectedAlt")}
                   className="user-avatar-img"
                 />
               </div>
 
               <div className="user-details-text">
                 <span className="user-name-text">
-                  {selectedUser?.full_name || "Aucun destinataire sélectionné"}
+                  {selectedUser?.full_name || t("feedback.noRecipient")}
                 </span>
 
                 {selectedUser && (
                   <>
-                    <span className="user-email-text">
-                      {selectedUser.email}
-                    </span>
-
-                    <span className="user-dept-text">
-                      {selectedUser.department_name ||
-                        selectedUser.departments?.name ||
-                        "Département non renseigné"}
-                    </span>
+                    <span className="user-email-text">{selectedUser.email}</span>
+                    <span className="user-dept-text">{departmentOf(selectedUser)}</span>
                   </>
                 )}
               </div>
@@ -621,63 +528,13 @@ function FeedbackSection() {
               {selectedUser && (
                 <svg className="selected-check-icon" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" />
-
                   <path d="M8 12l3 3 5-6" />
                 </svg>
               )}
             </div>
           </div>
 
-          {/* FOOTER */}
-          <div className="feedback-footer-row">
-            <div className="security-note">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#0066cc"
-                strokeWidth="2"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-
-              <span>Connecté à Microsoft Teams • Sécurisé et confidentiel</span>
-            </div>
-
-            <div className="teams-branding">
-              <svg
-                className="teams-official-logo"
-                viewBox="0 0 48 48"
-                fill="none"
-              >
-                <path
-                  d="M37 12C37 10.34 35.66 9 34 9H24C22.34 9 21 10.34 21 12V36C21 37.66 22.34 39 24 39H34C35.66 39 37 37.66 37 36V12Z"
-                  fill="#5059C9"
-                />
-
-                <circle cx="34" cy="14" r="3" fill="#7B83EB" />
-
-                <path
-                  d="M43 17C43 15.9 42.1 15 41 15H37V33H41C42.1 33 43 32.1 43 31V17Z"
-                  fill="#4B53BC"
-                />
-
-                <circle cx="39" cy="18" r="2" fill="#7B83EB" />
-
-                <path
-                  d="M23 9H9C7.34 9 6 10.34 6 12V36C6 37.66 7.34 39 9 39H23V9Z"
-                  fill="#3F46A4"
-                />
-
-                <path d="M12 18H20V21H17.5V30H14.5V21H12V18Z" fill="white" />
-              </svg>
-
-              <span>Teams</span>
-            </div>
-          </div>
+          <SecureFooter />
         </div>
       )}
     </div>

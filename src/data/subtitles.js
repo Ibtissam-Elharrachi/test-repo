@@ -1,0 +1,71 @@
+// Sous-titres de la vidéo "Pourquoi le feedback ?"
+// Chaque ligne FR et EN correspond au même temps dans SUBTITLE_TIMES.
+
+export const SUBTITLE_TRACK_LABEL = "Sous-titres / Subtitles";
+
+export const SUBTITLES_FR = [
+  "À un moment donné, à l'université ou dans la vie, vous devez faire un retour.",
+  "Donner un avis est un moyen important de favoriser la croissance et le développement.",
+  "En réalité, il est très difficile pour quiconque de progresser sans une forme de retour.",
+  "Et bien que nous ne puissions pas contrôler la réception,",
+  "nous pouvons nous assurer que, lorsque nous conseillons des amis, collègues et pairs,",
+  "nous le faisons de la manière la plus utile et précieuse.",
+  "Alors, par où commencer ?",
+  "Une méthode simple pour envisager la rétroaction est la technique du sandwich.",
+  "Commencez par un retour positif en reconnaissant les points forts du travail.",
+  "Apportez un retour constructif en abordant les problèmes et les questions liés au travail.",
+  "Proposez des suggestions pour améliorer le travail avec des exemples précis.",
+  "En fait, plus vous êtes positif et précis concernant le travail,",
+  "plus il est probable que les changements soient adoptés par la personne qui reçoit le retour.",
+  "Terminez sur une note positive, en rappelant à la personne ses points forts",
+  "et en offrant votre soutien pour les domaines à améliorer.",
+  "Finissez sur une note positive.",
+  "Lorsque vous donnez un avis, voici quelques points utiles à garder à l'esprit.",
+  "Réfléchissez avant de parler. Que souhaitez-vous transmettre exactement ?",
+  "Soyez précis. Utilisez des exemples. Soyez concis.",
+  "Ne dépassez pas trois points de retour distincts à la fois.",
+  "Sinon, il y a trop d'éléments à prendre en compte.",
+  "Concentrez-vous sur le travail dans vos commentaires et ne devenez pas personnel.",
+  "N'attaquez pas la capacité ou la personnalité de la personne.",
+  "Donnez des suggestions et des stratégies d'amélioration.",
+  "Le but d'un retour est d'aider les autres à grandir, apprendre et se développer.",
+  "En donnant votre avis avec habileté, vous aurez plus de chances que les autres suivent vos suggestions.",
+  "Alors, la prochaine fois que vous ferez un retour,",
+  "essayez de garder ces conseils en tête.",
+  "Bonne chance !",
+];
+
+export const SUBTITLES_EN = [
+  "At some point, at university or in life, you will need to give feedback.",
+  "Giving feedback is an important way to encourage growth and development.",
+  "In reality, it is very hard for anyone to improve without some form of feedback.",
+  "And while we can't control how it is received,",
+  "we can make sure that, when we advise friends, colleagues and peers,",
+  "we do it in the most useful and valuable way.",
+  "So, where do you start?",
+  "A simple way to think about feedback is the sandwich technique.",
+  "Start with positive feedback, acknowledging the strengths of the work.",
+  "Then give constructive feedback, addressing the issues and questions related to the work.",
+  "Offer suggestions to improve the work, with specific examples.",
+  "In fact, the more positive and specific you are about the work,",
+  "the more likely it is that the person receiving the feedback will adopt the changes.",
+  "Finish on a positive note, reminding the person of their strengths",
+  "and offering your support in the areas to improve.",
+  "End on a positive note.",
+  "When you give feedback, here are a few useful points to keep in mind.",
+  "Think before you speak. What exactly do you want to convey?",
+  "Be specific. Use examples. Be concise.",
+  "Don't go beyond three distinct feedback points at a time.",
+  "Otherwise, there is too much to take in.",
+  "Focus on the work in your comments and don't get personal.",
+  "Don't attack the person's ability or personality.",
+  "Give suggestions and strategies for improvement.",
+  "The goal of feedback is to help others grow, learn and develop.",
+  "By giving your feedback skillfully, you are more likely to see others follow your suggestions.",
+  "So, the next time you give feedback,",
+  "try to keep these tips in mind.",
+  "Good luck!",
+];
+
+// Temps (en secondes) où commence chaque phrase (enregistrés avec l'outil de synchronisation)
+export const SUBTITLE_TIMES = [6.00, 10.49, 14.90, 21.19, 25.62, 28.77, 30.65, 34.94, 39.51, 43.88, 51.83, 54.49, 55.95, 59.68, 63.9, 65.11, 69.86, 71.31, 75.67, 80.62, 84.69, 88.12, 92.89, 94.7, 99.63, 102.84, 107.71, 110.15, 114.08];

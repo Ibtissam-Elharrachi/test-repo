@@ -1,99 +1,47 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import "../../styles/indicators.css";
+import { useLanguage } from "../../context/LanguageContext";
 
-// IMPORT SERVICES 
+// IMPORT SERVICES
 import { getUserIndicators, getScoreEvolution } from "../../services/userService";
 
-
-const IndicatorsSection = ({
-  onOpenFeedbackList,
-  user,
-}) => {
+const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
+  const { t } = useLanguage();
 
   const [indicators, setIndicators] = useState(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [scoreEvolution, setScoreEvolution] = useState(null);
-  const [scoreEvolutionLoading, setScoreEvolutionLoading] = useState(false);
-  const [scoreEvolutionError, setScoreEvolutionError] = useState(null);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
-  /*useEffect(() => {
     const loadIndicators = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
-
       try {
         setLoading(true);
         setError(null);
 
-        const data = await getUserIndicators(user.id);
+        const [indicatorData, evolutionData] = await Promise.all([
+          getUserIndicators(user.id),
+          getScoreEvolution(user.id),
+        ]);
 
-        setIndicators((previous) => ({
-          ...previous,
-          globalScore: data.globalScore,
-          sentCount: data.sentCount,
-          receivedCount: data.receivedCount,
-          lastInteraction: data.lastInteraction,
-        }));
-      } catch (error) {
-        console.error(
-          "Erreur lors du chargement des indicateurs:",
-          error
-        );
-
-        setError(
-          "Impossible de charger vos indicateurs."
-        );
+        setIndicators(indicatorData);
+        setScoreEvolution(evolutionData);
+      } catch (err) {
+        console.error("Erreur lors du chargement des indicateurs:", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
-
     loadIndicators();
-  }, [user?.id]);*/
-
-  useEffect(() => {
-  if (!user?.id) {
-        setLoading(false);
-        return;
-  };
-
-  const loadIndicators = async () => {
-    try {
-      setScoreEvolutionLoading(true);
-      setScoreEvolutionError(null);
-
-      setLoading(true);
-      setError(null);
-
-      const [indicatorData, evolutionData] = await Promise.all([
-        getUserIndicators(user.id),
-        getScoreEvolution(user.id),
-      ]);
-
-      setIndicators(indicatorData);
-      setScoreEvolution(evolutionData);
-    } catch (error) {
-      setError(
-          "Impossible de charger vos indicateurs."
-        );
-      setScoreEvolutionError(error);
-    } finally {
-      setScoreEvolutionLoading(false);
-      setLoading(false);
-    }
-  };
-
-  loadIndicators();
-}, [user?.id]);
-
-
+  }, [user?.id]);
 
   const formatLastInteraction = (date) => {
     if (!date) {
@@ -104,30 +52,28 @@ const IndicatorsSection = ({
     const diffMinutes = Math.floor(diffMs / 60000);
 
     if (diffMinutes < 1) {
-      return "À l'instant";
+      return t("indicators.justNow");
     }
 
     if (diffMinutes < 60) {
-      return `${diffMinutes} min`;
+      return `${diffMinutes} ${t("indicators.minutes")}`;
     }
 
     const diffHours = Math.floor(diffMinutes / 60);
 
     if (diffHours < 24) {
-      return `${diffHours} h`;
+      return `${diffHours} ${t("indicators.hours")}`;
     }
 
     const diffDays = Math.floor(diffHours / 24);
 
-    return `${diffDays} j`;
+    return `${diffDays} ${t("indicators.days")}`;
   };
 
   if (error) {
     return (
       <section className="section-card" id="indicateurs">
-        <div className="indicators-error">
-          {error}
-        </div>
+        <div className="indicators-error">{t("indicators.loadError")}</div>
       </section>
     );
   }
@@ -136,14 +82,12 @@ const IndicatorsSection = ({
   const displayScoreEvolution = () => {
     const evolutionValue = scoreEvolution?.evolutionPercentage;
 
-    const evolutionDisplay =
-      evolutionValue === null || evolutionValue === undefined
-        ? "—"
-        : `${evolutionValue >= 0 ? "+" : ""}${evolutionValue.toFixed(0)}%`;
+    return evolutionValue === null || evolutionValue === undefined
+      ? "—"
+      : `${evolutionValue >= 0 ? "+" : ""}${evolutionValue.toFixed(0)}%`;
+  };
 
-    return evolutionDisplay;
-
-  }
+  const globalScore = indicators?.globalScore;
 
   return (
     <section className="section-card" id="indicateurs">
@@ -167,7 +111,7 @@ const IndicatorsSection = ({
           </div>
 
           <h3 className="box-main-title title-with-orange-line">
-            Mes indicateurs
+            {t("indicators.title")}
           </h3>
         </div>
       </div>
@@ -189,18 +133,15 @@ const IndicatorsSection = ({
               </svg>
             </div>
 
-            <span className="indicator-card-title">
-              Score global
-            </span>
+            <span className="indicator-card-title">{t("indicators.global")}</span>
           </div>
 
           <div className="indicator-value">
             {loading
               ? "..."
-              : indicators?.globalScore !== null
-                ? `${Number(indicators?.globalScore).toFixed(2)} / 5`
-                : "—"
-            }
+              : globalScore !== null && globalScore !== undefined
+                ? `${Number(globalScore).toFixed(2)} / 5`
+                : "—"}
           </div>
         </div>
 
@@ -224,25 +165,15 @@ const IndicatorsSection = ({
               </svg>
             </div>
 
-            <span className="indicator-card-title">
-              Feedback envoyés
-            </span>
+            <span className="indicator-card-title">{t("indicators.sent")}</span>
           </div>
 
           <div>
-            <div
-              className="indicator-value"
-              id="envoyesCountDisplay"
-            >
-              {loading
-                ? "..."
-                : indicators?.sentCount
-              }
+            <div className="indicator-value" id="envoyesCountDisplay">
+              {loading ? "..." : indicators?.sentCount}
             </div>
 
-            <div className="click-hint">
-              Cliquez pour voir la liste →
-            </div>
+            <div className="click-hint">{t("indicators.clickList")}</div>
           </div>
         </div>
 
@@ -266,32 +197,21 @@ const IndicatorsSection = ({
               </svg>
             </div>
 
-            <span className="indicator-card-title">
-              Feedback reçus
-            </span>
+            <span className="indicator-card-title">{t("indicators.received")}</span>
           </div>
 
           <div>
-            <div
-              className="indicator-value"
-              id="recusCountDisplay"
-            >
-              {loading
-                ? "..."
-                : indicators?.receivedCount
-              }
+            <div className="indicator-value" id="recusCountDisplay">
+              {loading ? "..." : indicators?.receivedCount}
             </div>
 
-            <div className="click-hint">
-              Cliquez pour voir la liste →
-            </div>
+            <div className="click-hint">{t("indicators.clickList")}</div>
           </div>
         </div>
       </div>
 
       {/* BOTTOM INDICATORS */}
       <div className="indicators-bottom-grid">
-
         {/* ÉVOLUTION */}
         <div className="indicator-card">
           <div className="indicator-card-top">
@@ -309,9 +229,7 @@ const IndicatorsSection = ({
               </svg>
             </div>
 
-            <span className="indicator-card-title">
-              Mon évolution
-            </span>
+            <span className="indicator-card-title">{t("indicators.evolution")}</span>
           </div>
 
           <div>
@@ -331,13 +249,9 @@ const IndicatorsSection = ({
               {displayScoreEvolution()}
             </div>
 
-            <div className="evolution-subtext">
-              vs. mois dernier
-            </div>
+            <div className="evolution-subtext">{t("indicators.vsLastMonth")}</div>
 
-            <div className="evolution-desc">
-              Votre score progresse continuellement grâce au feedback.
-            </div>
+            <div className="evolution-desc">{t("indicators.evolutionDesc")}</div>
           </div>
         </div>
 
@@ -359,29 +273,22 @@ const IndicatorsSection = ({
             </div>
 
             <span className="indicator-card-title">
-              Dernière interaction
+              {t("indicators.lastInteraction")}
             </span>
           </div>
 
           <div>
             <div className="time-value">
-              {loading
-                ? "..."
-                : formatLastInteraction(
-                    indicators?.lastInteraction
-                  )
-              }
+              {loading ? "..." : formatLastInteraction(indicators?.lastInteraction)}
             </div>
 
             <div className="time-subtext">
               {indicators?.lastInteraction
-                ? "Dernier feedback envoyé ou reçu"
-                : "Aucune interaction"
-              }
+                ? t("indicators.lastInteractionDesc")
+                : t("indicators.noInteraction")}
             </div>
           </div>
         </div>
-
       </div>
     </section>
   );
