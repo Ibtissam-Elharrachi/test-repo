@@ -6,7 +6,6 @@ const LANGUAGES = [
   { code: "en", flag: "gb", name: "English" },
 ];
 
-// key = clé de traduction, target = id de la section dans la page
 const SEARCH_ITEMS = [
   { key: "why", target: "pourquoi-feedback" },
   { key: "give", target: "donner-feedback" },
@@ -15,48 +14,30 @@ const SEARCH_ITEMS = [
   { key: "history", target: "historique" },
 ];
 
-const NOTIFICATIONS = ["welcome", "tip"];
-const READ_STORAGE_KEY = "evolve_read_notifications";
-
-// Ignore majuscules et accents pour la recherche
 const normalize = (text) =>
   text
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-function Header({ user, onLogout }) {
+function Header({ user, onLogout, onOpenProfile, notifications, onOpenReceived }) {
   const { lang, setLang, t } = useLanguage();
 
-  // Un seul panneau ouvert à la fois : "search" | "lang" | "info" | "help" | "notifications" | "account" | null
   const [openPanel, setOpenPanel] = useState(null);
   const [query, setQuery] = useState("");
-  const [readNotifications, setReadNotifications] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(READ_STORAGE_KEY)) || [];
-    } catch {
-      return [];
-    }
-  });
+
+  const items = notifications?.items || [];
+  const readIds = notifications?.readIds || [];
+  const unreadCount = notifications?.unreadCount || 0;
 
   const currentLanguage =
     LANGUAGES.find((language) => language.code === lang) || LANGUAGES[0];
-
-  const unreadCount = NOTIFICATIONS.filter(
-    (id) => !readNotifications.includes(id)
-  ).length;
 
   const listFrom = (key) => {
     const value = t(key);
     return Array.isArray(value) ? value : [];
   };
 
-  // Mémorise les notifications lues
-  useEffect(() => {
-    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(readNotifications));
-  }, [readNotifications]);
-
-  // Ferme les panneaux au clic à l'extérieur ou avec Échap
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest("[data-popover]")) {
@@ -81,6 +62,9 @@ function Header({ user, onLogout }) {
 
   const togglePanel = (name) => {
     setOpenPanel((previous) => (previous === name ? null : name));
+    if (name === "notifications") {
+      notifications?.refresh?.();
+    }
   };
 
   // RECHERCHE
@@ -100,9 +84,7 @@ function Header({ user, onLogout }) {
   };
 
   const goToSection = (targetId) => {
-    document
-      .getElementById(targetId)
-      ?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth" });
     setQuery("");
     setOpenPanel(null);
   };
@@ -113,27 +95,35 @@ function Header({ user, onLogout }) {
     }
   };
 
-  // LANGUE
   const changeLanguage = (code) => {
     setLang(code);
     setOpenPanel(null);
   };
 
   // NOTIFICATIONS
-  const markAsRead = (id) => {
-    setReadNotifications((previous) =>
-      previous.includes(id) ? previous : [...previous, id]
-    );
+  const notificationText = (feedback) => {
+    const name = feedback.sender?.full_name || t("notif.someone");
+    const key = feedback.type === "POSITIVE" ? "notif.positive" : "notif.improvement";
+    return t(key).replace("{name}", name);
   };
 
-  const markAllAsRead = () => {
-    setReadNotifications([...NOTIFICATIONS]);
+  const formatDate = (date) =>
+    new Date(date).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const handleNotificationClick = (feedback) => {
+    notifications?.markAsRead?.(feedback.id);
+    setOpenPanel(null);
+    onOpenReceived?.();
   };
 
   // COMPTE
   const handleLogoutClick = async () => {
     setOpenPanel(null);
-
     if (onLogout) {
       await onLogout();
     }
@@ -148,11 +138,7 @@ function Header({ user, onLogout }) {
     <header className="header">
       {/* LOGO */}
       <a href="#top" className="logo-container">
-        <img
-          src="/images/header-logo.png"
-          alt="Stellantis Evolve"
-          className="header-logo-img"
-        />
+        <img src="/images/header-logo.png" alt="Stellantis Evolve" className="header-logo-img" />
       </a>
 
       {/* SEARCH */}
@@ -203,9 +189,7 @@ function Header({ user, onLogout }) {
               alt={currentLanguage.code.toUpperCase()}
               className="flag-icon"
             />
-
             <span id="selectedText">{currentLanguage.name}</span>
-
             <svg className="chevron-blue" viewBox="0 0 12 8">
               <path d="M1 1l5 5 5-5" />
             </svg>
@@ -277,44 +261,47 @@ function Header({ user, onLogout }) {
             </svg>
 
             {unreadCount > 0 && (
-              <span className="notification-badge">{unreadCount}</span>
+              <span className="notification-badge">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
             )}
           </button>
 
           {openPanel === "notifications" && (
             <div className="header-panel">
               <div className="panel-header-row">
-                <h4 className="panel-title">
-                  {t("header.notifications.title")}
-                </h4>
+                <h4 className="panel-title">{t("header.notifications.title")}</h4>
 
                 {unreadCount > 0 && (
                   <button
                     type="button"
                     className="panel-link-btn"
-                    onClick={markAllAsRead}
+                    onClick={() => notifications?.markAllAsRead?.()}
                   >
                     {t("header.notifications.markAllRead")}
                   </button>
                 )}
               </div>
 
-              {NOTIFICATIONS.map((id) => {
-                const isRead = readNotifications.includes(id);
+              {items.length === 0 && (
+                <div className="search-no-result">{t("notif.empty")}</div>
+              )}
+
+              {items.map((feedback) => {
+                const isRead = readIds.includes(feedback.id);
 
                 return (
                   <button
-                    key={id}
+                    key={feedback.id}
                     type="button"
                     className="notif-item"
-                    onClick={() => markAsRead(id)}
+                    onClick={() => handleNotificationClick(feedback)}
                   >
                     <div className={`notif-dot ${isRead ? "read" : ""}`} />
                     <div>
-                      <strong>
-                        {t(`header.notifications.items.${id}.title`)}
-                      </strong>
-                      <span>{t(`header.notifications.items.${id}.text`)}</span>
+                      <strong>{notificationText(feedback)}</strong>
+                      <span>{feedback.content}</span>
+                      <small className="notif-date">{formatDate(feedback.created_at)}</small>
                     </div>
                   </button>
                 );
@@ -358,21 +345,14 @@ function Header({ user, onLogout }) {
             aria-expanded={openPanel === "account"}
             aria-haspopup="true"
           >
-            <img
-              id="userAvatar"
-              src={avatar}
-              alt="Avatar"
-              className="avatar-img"
-            />
+            <img id="userAvatar" src={avatar} alt="Avatar" className="avatar-img" />
 
             <div className="account-email" id="headerEmail">
               {user?.email}
             </div>
 
             <svg
-              className={`account-chevron ${
-                openPanel === "account" ? "open" : ""
-              }`}
+              className={`account-chevron ${openPanel === "account" ? "open" : ""}`}
               viewBox="0 0 12 8"
               aria-hidden="true"
             >
@@ -383,15 +363,10 @@ function Header({ user, onLogout }) {
           {openPanel === "account" && (
             <div className="account-dropdown-menu">
               <div className="account-dropdown-header">
-                <img
-                  src={avatar}
-                  alt="Avatar"
-                  className="account-dropdown-avatar"
-                />
+                <img src={avatar} alt="Avatar" className="account-dropdown-avatar" />
 
                 <div className="account-dropdown-user">
                   <strong id="dropdownUserName">{user?.name}</strong>
-
                   <span id="dropdownUserEmail">{user?.email}</span>
                 </div>
               </div>
@@ -403,7 +378,7 @@ function Header({ user, onLogout }) {
                 className="account-menu-item"
                 onClick={() => {
                   setOpenPanel(null);
-                  // Future: profile page
+                  onOpenProfile?.();
                 }}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -414,11 +389,7 @@ function Header({ user, onLogout }) {
                 <span>{t("header.account.profile")}</span>
               </button>
 
-              <button
-                type="button"
-                className="account-menu-item logout"
-                onClick={handleLogoutClick}
-              >
+              <button type="button" className="account-menu-item logout" onClick={handleLogoutClick}>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M10 17l5-5-5-5" />
                   <path d="M15 12H3" />

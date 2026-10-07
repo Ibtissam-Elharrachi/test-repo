@@ -3,27 +3,31 @@ import { useState, useEffect } from "react";
 // IMPORT COMPONENTS
 import AuthModal from "./components/auth/AuthModal";
 import ResetPasswordModal from "./components/auth/ResetPasswordModal";
+import ProfileModal from "./components/profile/ProfileModal";
 import Header from "./components/layout/Header";
 import Breadcrumb from "./components/layout/BreadcrumbNav";
-//import Chatbot from "./components/layout/ChatbotWidget";
+import Chatbot from "./components/layout/ChatbotWidget";
 import HeroSection from "./components/layout/HeroSection";
 import FeedbackSection from "./components/feedback/FeedbackSection";
 import IndicatorsSection from "./components/indicators/IndicatorsSection";
 import ScoreHistory from "./components/history/ScoreHistory";
 import FeedbackListModal from "./components/indicators/FeedbackListModal";
+import HRDashboard from "./components/hr/HRDashboard";
 
 // Import Services & Utils
 import { supabase } from "./services/supabaseClient";
 import { LanguageProvider, useLanguage } from "./context/LanguageContext";
-import {
-  SUBTITLES_FR,
-  SUBTITLES_EN,
-  SUBTITLE_TIMES,
-  SUBTITLE_TRACK_LABEL,
-} from "./data/subtitles";
+import { useNotifications } from "./hooks/useNotifications";
+import { SUBTITLES_FR, SUBTITLES_EN, SUBTITLE_TIMES } from "./data/subtitles";
 
 // IMPORT STYLING
 import "./App.css";
+
+// Pistes de sous-titres disponibles (choisies depuis le bouton CC du lecteur vidéo)
+const SUBTITLE_TRACKS = [
+  { code: "fr", label: "Français", lines: SUBTITLES_FR },
+  { code: "en", label: "English", lines: SUBTITLES_EN },
+];
 
 function AppContent() {
   const { lang, t } = useLanguage();
@@ -32,13 +36,22 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showFeedbackList, setShowFeedbackList] = useState(false);
   const [feedbackListType, setFeedbackListType] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
   const [user, setUser] = useState(null);
   const [welcomeToast, setWelcomeToast] = useState(false);
 
-  // RESET PASSWORD (s'affiche quand l'utilisateur vient du lien email)
+  // Sous-titres affichés au départ : suivent la langue de l'application
+  const [subLang, setSubLang] = useState(lang);
+
+  const notifications = useNotifications(user);
+
   const [showReset, setShowReset] = useState(() =>
     window.location.hash.includes("type=recovery")
   );
+
+  useEffect(() => {
+    setSubLang(lang);
+  }, [lang]);
 
   const openFeedbackList = (type) => {
     setFeedbackListType(type);
@@ -50,40 +63,36 @@ function AppContent() {
     setFeedbackListType(null);
   };
 
-  // Message de bienvenue après inscription
+  const openReceivedFeedbacks = () => {
+    notifications.markAllAsRead();
+    openFeedbackList("recus");
+  };
+
+  const handleProfileSaved = (updated) => {
+    setUser((previous) => ({ ...previous, ...updated }));
+  };
+
   const showWelcome = () => {
     setWelcomeToast(true);
     setTimeout(() => setWelcomeToast(false), 4000);
   };
 
-  // Traduit les erreurs Supabase en messages clairs pour l'utilisateur
-  const translateAuthError = (error) => {
+  // Retourne une clé de traduction (AuthModal la traduit dans sa propre langue)
+  const authErrorKey = (error) => {
     const msg = (error?.message || "").toLowerCase();
 
-    if (msg.includes("invalid login credentials")) {
-      return t("errors.invalidCredentials");
-    }
-    if (msg.includes("already registered")) {
-      return t("errors.alreadyRegistered");
-    }
-    if (msg.includes("password should be at least")) {
-      return t("errors.weakPassword");
-    }
-    if (msg.includes("failed to fetch") || msg.includes("network")) {
-      return t("errors.network");
-    }
-    if (msg.includes("rate limit") || msg.includes("too many")) {
-      return t("errors.rateLimit");
-    }
-    if (msg.includes("email not confirmed")) {
-      return t("errors.emailNotConfirmed");
-    }
-    return t("errors.generic");
+    if (msg.includes("invalid login credentials")) return "errors.invalidCredentials";
+    if (msg.includes("already registered")) return "errors.alreadyRegistered";
+    if (msg.includes("password should be at least")) return "errors.weakPassword";
+    if (msg.includes("failed to fetch") || msg.includes("network")) return "errors.network";
+    if (msg.includes("rate limit") || msg.includes("too many")) return "errors.rateLimit";
+    if (msg.includes("email not confirmed")) return "errors.emailNotConfirmed";
+    return "errors.generic";
   };
 
   const handleAuth = async (userData) => {
     try {
-      const { name, email, password, gender, mode } = userData;
+      const { name, email, password, department_id, mode } = userData;
 
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -92,14 +101,12 @@ function AppContent() {
           options: {
             data: {
               full_name: name,
-              gender: gender,
+              department_id,
             },
           },
         });
 
         if (error) throw error;
-
-        console.log("Signup successful:", data);
 
         if (data.session?.user) {
           await loadUserProfile(data.user);
@@ -110,15 +117,12 @@ function AppContent() {
         return null;
       }
 
-      // LOGIN
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-
-      console.log("Login successful:", data);
 
       if (data.user) {
         await loadUserProfile(data.user);
@@ -128,11 +132,10 @@ function AppContent() {
       return null;
     } catch (error) {
       console.error("Authentication error:", error);
-      return { error: translateAuthError(error) };
+      return { errorKey: authErrorKey(error) };
     }
   };
 
-  // Retrieve User Profile State
   const loadUserProfile = async (authUser) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -145,7 +148,6 @@ function AppContent() {
       return;
     }
 
-    // Si le profil n'existe pas encore, on évite le crash
     if (!data) {
       console.warn("Aucun profil trouvé pour cet utilisateur.");
       setShowAuth(false);
@@ -158,6 +160,8 @@ function AppContent() {
       email: data.email,
       gender: data.gender,
       avatar_url: data.avatar_url,
+      stellantis_id: data.stellantis_id,
+      department_id: data.department_id,
       role: data.role,
       current_score: data.current_score,
     });
@@ -165,7 +169,6 @@ function AppContent() {
     setShowAuth(false);
   };
 
-  // Listen to Supabase Authentication
   useEffect(() => {
     let mounted = true;
 
@@ -193,20 +196,14 @@ function AppContent() {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log("Auth event:", event);
-
       if (event === "PASSWORD_RECOVERY") {
         setShowReset(true);
       }
 
       if (event === "SIGNED_OUT") {
         setShowAuth(true);
-
-        setUser({
-          name: "prénom",
-          email: "user@gmail.com",
-          gender: "femme",
-        });
+        setShowProfile(false);
+        setUser(null);
       } else if (
         (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
         session?.user
@@ -249,77 +246,64 @@ function AppContent() {
     return () => observer.disconnect();
   }, [authLoading]);
 
-  // Sous-titres synchronisés (français ou anglais selon la langue choisie)
+  // Sous-titres FR + EN (les deux pistes existent ; le bouton CC du lecteur permet de choisir)
   useEffect(() => {
     if (authLoading) return;
 
     const video = document.getElementById("scrollAutoplayVideo");
     if (!video) return;
 
-    const lines = lang === "en" ? SUBTITLES_EN : SUBTITLES_FR;
-
-    const buildSubtitles = () => {
+    const applySubtitles = () => {
       const duration = video.duration;
       if (!duration || !isFinite(duration)) return;
 
-      // Réutilise la piste si elle existe déjà, sinon la crée
-      let track = Array.from(video.textTracks).find(
-        (item) => item.label === SUBTITLE_TRACK_LABEL
-      );
-      if (!track) {
-        track = video.addTextTrack("subtitles", SUBTITLE_TRACK_LABEL, lang);
-      }
-
-      // Vide les anciens sous-titres
-      if (track.cues) {
-        Array.from(track.cues).forEach((cue) => track.removeCue(cue));
-      }
-
-      lines.forEach((line, index) => {
-        const start = SUBTITLE_TIMES[index];
-        if (start === undefined) return;
-
-        const nextStart =
-          index < lines.length - 1 ? SUBTITLE_TIMES[index + 1] : duration;
-        const end = Math.min(nextStart - 0.05, start + 8, duration);
-
-        if (end > start) {
-          track.addCue(new VTTCue(start, end, line));
+      SUBTITLE_TRACKS.forEach(({ code, label, lines }) => {
+        let track = Array.from(video.textTracks).find((item) => item.label === label);
+        if (!track) {
+          track = video.addTextTrack("subtitles", label, code);
         }
-      });
 
-      // Désactivés par défaut ; si l'utilisateur les a activés, on les garde affichés
-      track.mode = track.mode === "showing" ? "showing" : "hidden";
+        // Ajoute les phrases une seule fois
+        if (!track.cues || track.cues.length === 0) {
+          lines.forEach((line, index) => {
+            const start = SUBTITLE_TIMES[index];
+            if (start === undefined) return;
+
+            const nextStart =
+              index < lines.length - 1 ? SUBTITLE_TIMES[index + 1] : duration;
+            const end = Math.min(nextStart - 0.05, start + 8, duration);
+
+            if (end > start) {
+              track.addCue(new VTTCue(start, end, line));
+            }
+          });
+        }
+
+        track.mode = subLang === code ? "showing" : "hidden";
+      });
     };
 
     if (video.readyState >= 1) {
-      buildSubtitles();
+      applySubtitles();
     } else {
-      video.addEventListener("loadedmetadata", buildSubtitles);
+      video.addEventListener("loadedmetadata", applySubtitles);
     }
 
     return () => {
-      video.removeEventListener("loadedmetadata", buildSubtitles);
+      video.removeEventListener("loadedmetadata", applySubtitles);
     };
-  }, [authLoading, lang]);
+  }, [authLoading, subLang]);
 
-  // LOGOUT SESSION
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw error;
-      }
-
-      console.log("User signed out");
+      if (error) throw error;
     } catch (error) {
       console.error("Logout error:", error);
       alert(t("errors.logout"));
     }
   };
 
-  // Loading State Handling
   if (authLoading) {
     return (
       <div className="auth-loading-screen">
@@ -333,7 +317,6 @@ function AppContent() {
 
   return (
     <div id="id">
-      {/* MESSAGE DE BIENVENUE */}
       {welcomeToast && (
         <div className="welcome-toast" role="status">
           <svg
@@ -353,10 +336,8 @@ function AppContent() {
         </div>
       )}
 
-      {/* AUTHENTIFICATION */}
       {showAuth && <AuthModal onAuth={handleAuth} />}
 
-      {/* NOUVEAU MOT DE PASSE */}
       {showReset && (
         <ResetPasswordModal
           onDone={() => {
@@ -366,43 +347,40 @@ function AppContent() {
         />
       )}
 
-      {/* FEEDBACK LIST MODAL */}
-      {showFeedbackList && (
-        <FeedbackListModal
-          type={feedbackListType}
-          onClose={closeFeedbackList}
+      {showProfile && user?.id && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onSaved={handleProfileSaved}
         />
       )}
 
-      {/* HEADER */}
-      <Header user={user} onLogout={handleLogout} />
+      {showFeedbackList && (
+        <FeedbackListModal type={feedbackListType} onClose={closeFeedbackList} />
+      )}
 
-      {/* BREADCRUMB */}
+      <Header
+        user={user}
+        onLogout={handleLogout}
+        onOpenProfile={() => setShowProfile(true)}
+        notifications={notifications}
+        onOpenReceived={openReceivedFeedbacks}
+      />
+
       <Breadcrumb
+        unreadCount={notifications.unreadCount}
         onFeedbackClick={() => {
           document
             .getElementById("donner-feedback")
             ?.scrollIntoView({ behavior: "smooth" });
         }}
-        onReceivedFeedbackClick={() => {
-          // Temporary behavior.
-          // We'll connect this to the received-feedback list later.
-          document
-            .getElementById("indicateurs")
-            ?.scrollIntoView({ behavior: "smooth" });
-        }}
+        onReceivedFeedbackClick={openReceivedFeedbacks}
       />
 
-      {/* HERO */}
       <HeroSection user={user} />
 
-      {/* MAIN CONTENT */}
       <main className="main-content">
-        {/* POURQUOI LE FEEDBACK */}
-        <section
-          className="section-card video-feature-card"
-          id="pourquoi-feedback"
-        >
+        <section className="section-card video-feature-card" id="pourquoi-feedback">
           <div className="video-feature-header">
             <h3 className="box-main-title title-with-orange-line">
               {t("video.title")}
@@ -425,18 +403,16 @@ function AppContent() {
           </div>
         </section>
 
-        {/* DONNER UN FEEDBACK */}
         <FeedbackSection />
 
-        {/* INDICATEURS */}
-        <IndicatorsSection
-          onOpenFeedbackList={openFeedbackList}
-          user={user}
-        />
+        <IndicatorsSection onOpenFeedbackList={openFeedbackList} user={user} />
 
-        {/* HISTORIQUE */}
-        <ScoreHistory user={user} />
+                <ScoreHistory user={user} />
+
+        {user?.role === "ADMIN_HR" && <HRDashboard />}
       </main>
+
+      <Chatbot />
     </div>
   );
 }

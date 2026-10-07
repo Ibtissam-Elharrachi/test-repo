@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLanguage } from "../../context/LanguageContext";
+import { supabase } from "../../services/supabaseClient";
 
 // IMPORT SERVICES
 import {
@@ -7,7 +8,8 @@ import {
   sentimentMap,
   feedbackTypeMap,
 } from "../../services/feedbackService";
-import { searchCollaborators } from "../../services/userService";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SecureFooter({ style }) {
   const { t } = useLanguage();
@@ -29,25 +31,12 @@ function SecureFooter({ style }) {
         <span>{t("feedback.secure")}</span>
       </div>
 
-      <div className="teams-branding">
-        <svg className="teams-official-logo" viewBox="0 0 48 48" fill="none">
-          <path
-            d="M37 12C37 10.34 35.66 9 34 9H24C22.34 9 21 10.34 21 12V36C21 37.66 22.34 39 24 39H34C35.66 39 37 37.66 37 36V12Z"
-            fill="#5059C9"
-          />
-          <circle cx="34" cy="14" r="3" fill="#7B83EB" />
-          <path
-            d="M43 17C43 15.9 42.1 15 41 15H37V33H41C42.1 33 43 32.1 43 31V17Z"
-            fill="#4B53BC"
-          />
-          <circle cx="39" cy="18" r="2" fill="#7B83EB" />
-          <path
-            d="M23 9H9C7.34 9 6 10.34 6 12V36C6 37.66 7.34 39 9 39H23V9Z"
-            fill="#3F46A4"
-          />
-          <path d="M12 18H20V21H17.5V30H14.5V21H12V18Z" fill="white" />
+      <div className="teams-branding" style={{ color: "#d93025" }}>
+        <svg className="teams-official-logo" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="5" width="20" height="14" rx="2" fill="#ffffff" stroke="#d93025" strokeWidth="1.6" />
+          <path d="M3 7l9 6.5L21 7" stroke="#d93025" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>Teams</span>
+        <span>Gmail</span>
       </div>
     </div>
   );
@@ -64,10 +53,21 @@ function FeedbackSection() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FEEDBACK COLLABORATORS SEARCH STATE
-  const [users, setUsers] = useState([]);
+  // RECIPIENT LOOKUP BY EMAIL
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
-  const [userSearchError, setUserSearchError] = useState(null);
+  const [userSearchError, setUserSearchError] = useState(null); // "error" | "notFound" | null
+
+  // TOAST (remplace les alertes du navigateur)
+  const [toast, setToast] = useState(null); // { type: "success" | "error", text }
+  const toastTimer = useRef(null);
+
+  const showToast = (type, text) => {
+    setToast({ type, text });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  };
+
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const selectFeedbackCategory = (type) => {
     setFeedbackType(type);
@@ -81,6 +81,7 @@ function FeedbackSection() {
     setFeedbackText("");
     setSearchValue("");
     setSelectedUser(null);
+    setUserSearchError(null);
   };
 
   const selectSentiment = (value) => {
@@ -89,56 +90,63 @@ function FeedbackSection() {
 
   const handleSmartSearch = (value) => {
     setSearchValue(value);
-
-    if (!value.trim()) {
-      setSelectedUser(null);
-    }
+    setSelectedUser(null);
+    setUserSearchError(null);
   };
 
   const clearSmartSearch = () => {
     setSearchValue("");
     setSelectedUser(null);
-  };
-
-  const selectUser = (user) => {
-    setSelectedUser(user);
-    setSearchValue(user.full_name);
-    setUsers([]);
     setUserSearchError(null);
   };
 
+  // Dès que l'email est complet, on retrouve automatiquement le collaborateur
   useEffect(() => {
-    const searchUsers = async () => {
-      const value = searchValue.trim();
+    const email = searchValue.trim().toLowerCase();
 
-      if (!value) {
-        setUsers([]);
-        setUserSearchError(null);
-        return;
-      }
+    if (!EMAIL_REGEX.test(email) || selectedUser) {
+      return;
+    }
 
-      // Don't search while a user is already selected
-      if (selectedUser) {
-        return;
-      }
-
+    const lookupUser = async () => {
       try {
         setIsSearchingUsers(true);
         setUserSearchError(null);
 
-        const collaborators = await searchCollaborators(value);
-        setUsers(collaborators);
-      } catch (error) {
-        console.error("Erreur lors de la recherche des collaborateurs:", error);
+        const { data, error } = await supabase
+          .from("profiles")
+          .select(
+            `
+            id,
+            full_name,
+            email,
+            avatar_url,
+            department:departments (
+              id,
+              name,
+              code
+            )
+          `
+          )
+          .eq("email", email)
+          .maybeSingle();
 
-        setUsers([]);
+        if (error) throw error;
+
+        if (data) {
+          setSelectedUser(data);
+        } else {
+          setUserSearchError("notFound");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la recherche du collaborateur:", error);
         setUserSearchError("error");
       } finally {
         setIsSearchingUsers(false);
       }
     };
 
-    const timeout = setTimeout(searchUsers, 300);
+    const timeout = setTimeout(lookupUser, 300);
 
     return () => clearTimeout(timeout);
   }, [searchValue, selectedUser]);
@@ -146,17 +154,17 @@ function FeedbackSection() {
   // CREATE NEW FEEDBACK
   const sendFeedback = async () => {
     if (!feedbackText.trim()) {
-      alert(t("feedback.alertWrite"));
+      showToast("error", t("feedback.alertWrite"));
       return;
     }
 
     if (!sentiment) {
-      alert(t("feedback.alertSentiment"));
+      showToast("error", t("feedback.alertSentiment"));
       return;
     }
 
     if (!selectedUser) {
-      alert(t("feedback.alertRecipient"));
+      showToast("error", t("feedback.alertRecipient"));
       return;
     }
 
@@ -170,27 +178,65 @@ function FeedbackSection() {
         sentiment: sentimentMap[sentiment],
       });
 
-      alert(t("feedback.alertSent"));
-
-      setFeedbackText("");
-      setSentiment(null);
+      showToast("success", t("feedback.alertSent"));
+            window.dispatchEvent(new Event("feedback:sent"));
 
       // Return to feedback type selection
       resetToChoiceStep();
     } catch (error) {
       console.error("Erreur lors de l'envoi du feedback:", error);
 
-      alert(error.message || t("feedback.alertError"));
+      showToast("error", error.message || t("feedback.alertError"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const departmentOf = (user) =>
-    user?.department_name || user?.departments?.name || t("feedback.noDepartment");
+    user?.department?.name ||
+    user?.department_name ||
+    user?.departments?.name ||
+    t("feedback.noDepartment");
 
   return (
     <div className="section-card" id="donner-feedback">
+      {/* TOAST */}
+      {toast && (
+        <div className={`feedback-toast ${toast.type}`} role="status">
+          <span className="feedback-toast-icon">
+            {toast.type === "success" ? (
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
+              </svg>
+            ) : (
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 7v6" />
+                <path d="M12 17h.01" />
+              </svg>
+            )}
+          </span>
+          <span>{toast.text}</span>
+        </div>
+      )}
+
       {/* ÉTAPE 1 : CHOIX DU TYPE DE FEEDBACK */}
       {step === "choice" && (
         <div id="feedbackStepChoice" className="feedback-type-selection-container">
@@ -427,7 +473,7 @@ function FeedbackSection() {
           <div className="sentiment-question">{t("feedback.recipientQuestion")}</div>
 
           <div className="recipient-section">
-            {/* SEARCH */}
+            {/* EMAIL INPUT */}
             <div className="search-user-wrapper">
               <div className="smart-search-input-container">
                 <svg className="search-icon-small" viewBox="0 0 24 24">
@@ -436,12 +482,13 @@ function FeedbackSection() {
                 </svg>
 
                 <input
-                  type="text"
+                  type="email"
                   id="targetUserSearch"
                   className="smart-search-input"
                   placeholder={t("feedback.searchPlaceholder")}
                   value={searchValue}
                   onChange={(event) => handleSmartSearch(event.target.value)}
+                  autoComplete="off"
                 />
 
                 <button className="clear-search-btn" onClick={clearSmartSearch}>
@@ -453,37 +500,12 @@ function FeedbackSection() {
                 <div className="search-loading">{t("feedback.searching")}</div>
               )}
 
-              {userSearchError && (
+              {userSearchError === "error" && (
                 <div className="search-error">{t("feedback.searchError")}</div>
               )}
 
-              {/* AUTOCOMPLETE */}
-              {searchValue.trim() && users.length > 0 && !selectedUser && (
-                <div className="autocomplete-results" id="searchResultsDropdown">
-                  {users.map((user) => (
-                    <button
-                      type="button"
-                      key={user.id}
-                      className="autocomplete-result-item"
-                      onClick={() => selectUser(user)}
-                    >
-                      <img
-                        src={
-                          user.avatar_url ||
-                          "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80"
-                        }
-                        alt=""
-                        className="autocomplete-user-avatar"
-                      />
-
-                      <div className="autocomplete-user-info">
-                        <strong>{user.full_name}</strong>
-                        <span>{user.email}</span>
-                        <small>{departmentOf(user)}</small>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+              {userSearchError === "notFound" && (
+                <div className="search-error">{t("feedback.emailNotFound")}</div>
               )}
             </div>
 

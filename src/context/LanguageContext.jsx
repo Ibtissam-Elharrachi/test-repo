@@ -1,24 +1,15 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { translations } from "../i18n/translations";
-import { pagesTranslations } from "../i18n/pagesTranslations";
+import { translate } from "../i18n";
 
 const LanguageContext = createContext(null);
 
-const STORAGE_KEY = "evolve_lang";
-
-// Fusionne les deux fichiers de traductions
-const allTranslations = {
-  fr: { ...translations.fr, ...pagesTranslations.fr },
-  en: { ...translations.en, ...pagesTranslations.en },
-};
-
-const resolve = (object, key) =>
-  key.split(".").reduce((current, part) => (current ? current[part] : undefined), object);
+const STORAGE_KEY = "evolve_app_lang";
+const DEFAULT_LANG = "en";
 
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved === "en" || saved === "fr" ? saved : "fr";
+    return saved === "en" || saved === "fr" ? saved : DEFAULT_LANG;
   });
 
   useEffect(() => {
@@ -26,16 +17,7 @@ export function LanguageProvider({ children }) {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const t = useCallback(
-    (key) => {
-      const value = resolve(allTranslations[lang], key);
-      if (value !== undefined) return value;
-
-      const fallback = resolve(allTranslations.fr, key);
-      return fallback !== undefined ? fallback : key;
-    },
-    [lang]
-  );
+  const t = useCallback((key) => translate(lang, key), [lang]);
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>

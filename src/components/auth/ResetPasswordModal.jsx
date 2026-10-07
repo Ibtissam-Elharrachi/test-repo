@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { supabase } from "../../services/supabaseClient";
+import { translate } from "../../i18n";
 
 function ResetPasswordModal({ onDone }) {
+  const tr = (key) => translate("fr", key);
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,11 +15,11 @@ function ResetPasswordModal({ onDone }) {
     setMessage(null);
 
     if (password.length < 6) {
-      setMessage({ type: "error", text: "Le mot de passe doit contenir au moins 6 caractères." });
+      setMessage({ type: "error", text: tr("reset.short") });
       return;
     }
     if (password !== confirm) {
-      setMessage({ type: "error", text: "Les deux mots de passe ne correspondent pas." });
+      setMessage({ type: "error", text: tr("reset.mismatch") });
       return;
     }
 
@@ -25,11 +28,11 @@ function ResetPasswordModal({ onDone }) {
     setLoading(false);
 
     if (error) {
-      setMessage({ type: "error", text: error.message });
+      setMessage({ type: "error", text: tr("errors.generic") });
       return;
     }
 
-    setMessage({ type: "success", text: "Mot de passe mis à jour. Redirection..." });
+    setMessage({ type: "success", text: tr("reset.success") });
     setTimeout(() => onDone && onDone(), 1500);
   };
 
@@ -37,23 +40,23 @@ function ResetPasswordModal({ onDone }) {
     <div className="login-overlay">
       <div className="login-popup-wrapper">
         <div className="title-container">
-          <h2>Nouveau mot de passe</h2>
+          <h2>{tr("reset.title")}</h2>
           <div className="title-divider"></div>
         </div>
 
-        <p>Choisissez un nouveau mot de passe pour votre compte.</p>
+        <p>{tr("reset.intro")}</p>
 
         <form onSubmit={handleSubmit}>
           <input
             type="password"
-            placeholder="Nouveau mot de passe"
+            placeholder={tr("reset.newPh")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
           <input
             type="password"
-            placeholder="Confirmer le mot de passe"
+            placeholder={tr("reset.confirmPh")}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
@@ -62,7 +65,7 @@ function ResetPasswordModal({ onDone }) {
           {message && <div className={`auth-message ${message.type}`}>{message.text}</div>}
 
           <button type="submit" disabled={loading}>
-            {loading ? "Veuillez patienter..." : "Enregistrer le mot de passe"}
+            {loading ? tr("reset.wait") : tr("reset.submit")}
           </button>
         </form>
       </div>
