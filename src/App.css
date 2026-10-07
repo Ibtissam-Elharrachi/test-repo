@@ -632,3 +632,418 @@ button.icon-circle:hover {
   font-size: 13.5px;
   color: #64748b;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================
+   AUTH : SÉLECTEUR DE LANGUE, MODAL PROFIL
+========================================= */
+.auth-lang-switch {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  gap: 4px;
+}
+
+.login-popup-wrapper .auth-lang-switch button {
+  width: auto;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0a3a75;
+  background: #edf4fc;
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+.login-popup-wrapper .auth-lang-switch button:hover {
+  transform: none;
+  background: #dbeafe;
+  border-radius: 8px;
+}
+
+.login-popup-wrapper .auth-lang-switch button.active {
+  color: #ffffff;
+  background: #0066cc;
+}
+
+.profile-modal .field-label {
+  display: block;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0c2340;
+  margin: 0 0 6px 4px;
+}
+
+.profile-modal input:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.login-popup-wrapper button.modal-x {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: #64748b;
+  background: #f1f5f9;
+  box-shadow: none;
+  border-radius: 50%;
+}
+
+.login-popup-wrapper button.modal-x:hover {
+  transform: none;
+  background: #e2e8f0;
+  border-radius: 50%;
+}
+
+.login-popup-wrapper button.secondary-btn {
+  background: #f1f5f9;
+  color: #0a3a75;
+  box-shadow: none;
+  margin-top: 10px;
+}
+
+.login-popup-wrapper button.secondary-btn:hover {
+  background: #e2e8f0;
+  transform: none;
+}
+
+.notif-date {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+/* =========================================
+   CHATBOT
+========================================= */
+.evb-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.evb-trigger {
+  position: relative;
+  width: 65px;
+  height: 65px;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #0066cc;
+  box-shadow: 0 10px 25px rgba(0, 102, 204, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+}
+
+.evb-trigger:hover {
+  transform: scale(1.08);
+}
+
+.evb-online {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  background: #22c55e;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+.evb-window {
+  width: 350px;
+  max-width: calc(100vw - 40px);
+  height: 460px;
+  max-height: 70vh;
+  margin-bottom: 14px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: accountDropdownIn 0.2s ease-out;
+}
+
+.evb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #0a3a75 0%, #0066cc 100%);
+}
+
+.evb-title { font-weight: 700; font-size: 15px; }
+.evb-sub { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+
+.evb-close {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.evb-close:hover { opacity: 1; }
+
+.evb-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.evb-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.evb-msg.bot {
+  align-self: flex-start;
+  background: #fff;
+  color: #0c2340;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 2px;
+}
+
+.evb-msg.user {
+  align-self: flex-end;
+  background: #0066cc;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+
+.evb-go {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0066cc;
+  cursor: pointer;
+}
+
+.evb-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evb-suggestions button {
+  padding: 7px 12px;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #0a3a75;
+  cursor: pointer;
+}
+
+.evb-suggestions button:hover { background: #edf4fc; }
+
+.evb-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.evb-input-area input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  outline: none;
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.evb-input-area input:focus { border-color: #0066cc; }
+
+.evb-send {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #0066cc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+
+
+
+
+
+
+/* Sélecteur de langue discret de la page de connexion */
+.auth-lang-bottom {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.login-popup-wrapper .auth-lang-bottom button {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.login-popup-wrapper .auth-lang-bottom button:hover {
+  transform: none;
+  background: none;
+  border-radius: 0;
+  color: #475569;
+}
+
+.login-popup-wrapper .auth-lang-bottom button.active {
+  color: #334155;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+/* Choix des sous-titres sous la vidéo */
+.subtitle-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.subtitle-picker button {
+  padding: 7px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0a3a75;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subtitle-picker button:hover {
+  background: #edf4fc;
+}
+
+.subtitle-picker button.active {
+  background: #0066cc;
+  border-color: #0066cc;
+  color: #ffffff;
+}
+
+
+
+
+
+
+
+/* Toast de confirmation / erreur */
+.feedback-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 13px 22px 13px 14px;
+  border-radius: 14px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 10px 28px rgba(10, 58, 117, 0.22);
+  animation: feedbackToastIn 0.3s ease;
+}
+
+.feedback-toast.success {
+  background: linear-gradient(135deg, #15803d, #22c55e);
+}
+
+.feedback-toast.error {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+}
+
+.feedback-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes feedbackToastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

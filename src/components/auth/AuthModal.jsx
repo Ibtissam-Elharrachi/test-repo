@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-
-// IMPORT LIBS / SERVICES & UTILS
+import React, { useState, useEffect } from "react";
 import { supabase } from "../../services/supabaseClient";
+import { translate } from "../../i18n";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,20 +20,45 @@ function EyeIcon({ open }) {
 }
 
 function AuthModal({ onAuth }) {
+  // La page de connexion est en français par défaut (indépendante de la langue de l'application)
+  const [lang, setLang] = useState("fr");
+  const tr = (key) => translate(lang, key);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [gender, setGender] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [departments, setDepartments] = useState([]);
   const [authMode, setAuthMode] = useState("login"); // "login" | "signup" | "forgot"
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null); // { type, text }
-  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState(null); // { type, key }
+  const [errors, setErrors] = useState({}); // { champ: clé de traduction }
 
   const isLogin = authMode === "login";
   const isSignup = authMode === "signup";
   const isForgot = authMode === "forgot";
+
+  // Charge la liste des départements pour l'inscription
+  useEffect(() => {
+    if (!isSignup || departments.length > 0) return;
+
+    const loadDepartments = async () => {
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name")
+        .order("name");
+
+      if (error) {
+        console.error("Erreur départements:", error);
+        return;
+      }
+      setDepartments(data || []);
+    };
+
+    loadDepartments();
+  }, [isSignup, departments.length]);
 
   const changeMode = (mode) => {
     setAuthMode(mode);
@@ -43,31 +67,20 @@ function AuthModal({ onAuth }) {
     setShowPassword(false);
   };
 
-  // VALIDATION
   const validate = () => {
     const newErrors = {};
 
-    if (isSignup && name.trim().length < 2) {
-      newErrors.name = "Veuillez saisir votre prénom et nom.";
-    }
+    if (isSignup && name.trim().length < 2) newErrors.name = "auth.errName";
 
-    if (!email.trim()) {
-      newErrors.email = "L'adresse email est obligatoire.";
-    } else if (!EMAIL_REGEX.test(email.trim())) {
-      newErrors.email = "Veuillez saisir une adresse email valide.";
-    }
+    if (!email.trim()) newErrors.email = "auth.errEmailRequired";
+    else if (!EMAIL_REGEX.test(email.trim())) newErrors.email = "auth.errEmailInvalid";
 
     if (!isForgot) {
-      if (!password) {
-        newErrors.password = "Le mot de passe est obligatoire.";
-      } else if (isSignup && password.length < 6) {
-        newErrors.password = "Le mot de passe doit contenir au moins 6 caractères.";
-      }
+      if (!password) newErrors.password = "auth.errPwdRequired";
+      else if (isSignup && password.length < 6) newErrors.password = "auth.errPwdShort";
     }
 
-    if (isSignup && !gender) {
-      newErrors.gender = "Veuillez sélectionner votre genre.";
-    }
+    if (isSignup && !departmentId) newErrors.department = "auth.errDepartment";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -79,7 +92,6 @@ function AuthModal({ onAuth }) {
 
     if (!validate()) return;
 
-    // MOT DE PASSE OUBLIÉ
     if (isForgot) {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
@@ -87,46 +99,43 @@ function AuthModal({ onAuth }) {
       });
       setLoading(false);
 
-      if (error) {
-        setMessage({
-          type: "error",
-          text: "Impossible d'envoyer le lien pour le moment. Veuillez réessayer plus tard.",
-        });
-      } else {
-        setMessage({
-          type: "success",
-          text: "Si cette adresse existe, un lien de réinitialisation vient d'être envoyé. Vérifiez votre boîte mail.",
-        });
-      }
+      setMessage(
+        error
+          ? { type: "error", key: "auth.resetFail" }
+          : { type: "success", key: "auth.resetSent" }
+      );
       return;
     }
 
-    // LOGIN / SIGNUP
-    const userData = { name: name.trim(), email: email.trim(), password, gender, mode: authMode };
     if (onAuth) {
       setLoading(true);
-      const result = await onAuth(userData);
+      const result = await onAuth({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        department_id: departmentId,
+        mode: authMode,
+      });
       setLoading(false);
 
-      if (result?.error) {
-        setMessage({ type: "error", text: result.error });
+      if (result?.errorKey) {
+        setMessage({ type: "error", key: result.errorKey });
       }
     }
   };
+
+  const fieldError = (field) =>
+    errors[field] ? <div className="field-error">{tr(errors[field])}</div> : null;
 
   return (
     <div className="login-overlay" id="loginModal">
       <div className="login-popup-wrapper">
         <div className="title-container">
-          <h2>{isForgot ? "Mot de passe oublié ?" : "Révélez votre potentiel !"}</h2>
+          <h2>{isForgot ? tr("auth.forgotTitle") : tr("auth.title")}</h2>
           <div className="title-divider"></div>
         </div>
 
-        <p>
-          {isForgot
-            ? "Saisissez votre adresse email, nous vous enverrons un lien pour choisir un nouveau mot de passe."
-            : "Inscrivez-vous dans une démarche de progrès continu et d'échange constructif."}
-        </p>
+        <p>{isForgot ? tr("auth.forgotIntro") : tr("auth.intro")}</p>
 
         <form id="authForm" onSubmit={handleSubmit} noValidate>
           {isSignup && (
@@ -134,24 +143,24 @@ function AuthModal({ onAuth }) {
               <input
                 type="text"
                 id="userInput"
-                placeholder="Prénom et nom"
+                placeholder={tr("auth.namePh")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={errors.name ? "input-error" : ""}
               />
-              {errors.name && <div className="field-error">{errors.name}</div>}
+              {fieldError("name")}
             </>
           )}
 
           <input
             type="email"
             id="userEmailInput"
-            placeholder="prenom.nom@gmail.com"
+            placeholder={tr("auth.emailPh")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={errors.email ? "input-error" : ""}
           />
-          {errors.email && <div className="field-error">{errors.email}</div>}
+          {fieldError("email")}
 
           {!isForgot && (
             <>
@@ -159,7 +168,7 @@ function AuthModal({ onAuth }) {
                 <input
                   type={showPassword ? "text" : "password"}
                   id="userPasswordInput"
-                  placeholder="Mot de passe"
+                  placeholder={tr("auth.passwordPh")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={errors.password ? "input-error" : ""}
@@ -168,58 +177,55 @@ function AuthModal({ onAuth }) {
                   type="button"
                   className="toggle-password"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                  title={showPassword ? "Masquer" : "Afficher"}
+                  aria-label={showPassword ? tr("auth.hidePwd") : tr("auth.showPwd")}
+                  title={showPassword ? tr("auth.hidePwd") : tr("auth.showPwd")}
                 >
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
-              {errors.password && <div className="field-error">{errors.password}</div>}
+              {fieldError("password")}
             </>
           )}
 
           {isSignup && (
             <>
               <select
-                id="userGenderInput"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                className={errors.gender ? "input-error" : ""}
+                id="userDepartmentInput"
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className={errors.department ? "input-error" : ""}
               >
-                <option value="" disabled>
-                  Sélectionnez votre genre
-                </option>
-                <option value="MALE">Homme</option>
-                <option value="FEMALE">Femme</option>
+                <option value="" disabled>{tr("auth.departmentPh")}</option>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
               </select>
-              {errors.gender && <div className="field-error">{errors.gender}</div>}
+              {fieldError("department")}
             </>
           )}
 
           {isLogin && (
-            <button
-              type="button"
-              className="forgot-link"
-              onClick={() => changeMode("forgot")}
-            >
-              Mot de passe oublié ?
+            <button type="button" className="forgot-link" onClick={() => changeMode("forgot")}>
+              {tr("auth.forgotLink")}
             </button>
           )}
 
           {message && (
             <div className={`auth-message ${message.type}`} role="alert">
-              {message.text}
+              {tr(message.key)}
             </div>
           )}
 
           <button type="submit" id="submitBtn" disabled={loading}>
             {loading
-              ? "Veuillez patienter..."
+              ? tr("auth.wait")
               : isForgot
-              ? "Envoyer le lien"
+              ? tr("auth.submitForgot")
               : isSignup
-              ? "Créer mon compte"
-              : "Commencer mon accompagnement"}
+              ? tr("auth.submitSignup")
+              : tr("auth.submitLogin")}
           </button>
         </form>
 
@@ -228,23 +234,42 @@ function AuthModal({ onAuth }) {
         <div className="auth-mode-switch">
           {isForgot ? (
             <button type="button" onClick={() => changeMode("login")}>
-              Retour à la connexion
+              {tr("auth.backToLogin")}
             </button>
           ) : isLogin ? (
             <>
-              <span>Vous n'avez pas encore de compte ?</span>
+              <span>{tr("auth.noAccount")}</span>
               <button type="button" onClick={() => changeMode("signup")}>
-                Créer un compte
+                {tr("auth.createAccount")}
               </button>
             </>
           ) : (
             <>
-              <span>Vous avez déjà un compte ?</span>
+              <span>{tr("auth.haveAccount")}</span>
               <button type="button" onClick={() => changeMode("login")}>
-                Se connecter
+                {tr("auth.signIn")}
               </button>
             </>
           )}
+        </div>
+
+        {/* Sélecteur de langue discret, centré en bas */}
+        <div className="auth-lang-bottom">
+          <button
+            type="button"
+            className={lang === "fr" ? "active" : ""}
+            onClick={() => setLang("fr")}
+          >
+            FR
+          </button>
+          <span>|</span>
+          <button
+            type="button"
+            className={lang === "en" ? "active" : ""}
+            onClick={() => setLang("en")}
+          >
+            EN
+          </button>
         </div>
       </div>
     </div>

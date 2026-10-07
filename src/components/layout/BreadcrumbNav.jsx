@@ -1,26 +1,21 @@
 import React from "react";
 import { useLanguage } from "../../context/LanguageContext";
 
-function BreadcrumbNav({ onFeedbackClick, onReceivedFeedbackClick }) {
+function BreadcrumbNav({ onFeedbackClick, onReceivedFeedbackClick, unreadCount = 0 }) {
   const { t } = useLanguage();
 
   const handleFeedbackClick = (event) => {
     event.preventDefault();
-    if (onFeedbackClick) {
-      onFeedbackClick();
-    }
+    onFeedbackClick?.();
   };
 
   const handleReceivedFeedbackClick = (event) => {
     event.preventDefault();
-    if (onReceivedFeedbackClick) {
-      onReceivedFeedbackClick();
-    }
+    onReceivedFeedbackClick?.();
   };
 
   return (
     <div className="breadcrumb-container">
-      {/* BREADCRUMB LEFT */}
       <div className="breadcrumb-left">
         <a href="#top" title={t("nav.homeTitle")}>
           <svg className="breadcrumb-home-icon" viewBox="0 0 24 24">
@@ -37,7 +32,6 @@ function BreadcrumbNav({ onFeedbackClick, onReceivedFeedbackClick }) {
         </a>
       </div>
 
-      {/* NAVIGATION LINKS */}
       <nav className="breadcrumb-nav-links">
         <a href="#pourquoi-feedback">{t("nav.why")}</a>
 
@@ -49,9 +43,11 @@ function BreadcrumbNav({ onFeedbackClick, onReceivedFeedbackClick }) {
 
         <a href="#feedbacks-recus" onClick={handleReceivedFeedbackClick}>
           {t("nav.received")}
-          <span className="nav-count-badge" id="navReceivedBadge">
-            +5
-          </span>
+          {unreadCount > 0 && (
+            <span className="nav-count-badge" id="navReceivedBadge">
+              +{unreadCount}
+            </span>
+          )}
         </a>
 
         <a href="#historique">{t("nav.history")}</a>

@@ -1,18 +1,36 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "../../styles/indicators.css";
 import { useLanguage } from "../../context/LanguageContext";
+import { supabase } from "../../services/supabaseClient";
 
-// IMPORT SERVICES
-import { getUserIndicators, getScoreEvolution } from "../../services/userService";
+// Réglages d'affichage (modifiables) :
+// fontSize = taille par rapport à "4" et "1" (1em = identique), fontWeight = épaisseur (400 fin, 600 moyen, 800 très gras)
+const SCORE_STYLE = { fontSize: "0.85em", fontWeight: 600 };
+const LAST_INTERACTION_STYLE = { fontSize: "0.7em", fontWeight: 600 };
 
 const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const [indicators, setIndicators] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [scoreEvolution, setScoreEvolution] = useState(null);
+  const loadIndicators = useCallback(async () => {
+    try {
+      setError(null);
+
+      const { data, error: rpcError } = await supabase.rpc("get_my_indicators");
+
+      if (rpcError) throw rpcError;
+
+      setIndicators(data);
+    } catch (err) {
+      console.error("Erreur lors du chargement des indicateurs:", err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user?.id) {
@@ -20,28 +38,19 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
       return;
     }
 
-    const loadIndicators = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [indicatorData, evolutionData] = await Promise.all([
-          getUserIndicators(user.id),
-          getScoreEvolution(user.id),
-        ]);
-
-        setIndicators(indicatorData);
-        setScoreEvolution(evolutionData);
-      } catch (err) {
-        console.error("Erreur lors du chargement des indicateurs:", err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    setLoading(true);
     loadIndicators();
-  }, [user?.id]);
+  }, [user?.id, loadIndicators]);
+
+  // Rafraîchit les indicateurs juste après l'envoi d'un feedback
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refresh = () => loadIndicators();
+    window.addEventListener("feedback:sent", refresh);
+
+    return () => window.removeEventListener("feedback:sent", refresh);
+  }, [user?.id, loadIndicators]);
 
   const formatLastInteraction = (date) => {
     if (!date) {
@@ -70,6 +79,13 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
     return `${diffDays} ${t("indicators.days")}`;
   };
 
+  // Un clic sur "Score global" descend vers la section historique du score
+  const goToScoreHistory = () => {
+    document
+      .getElementById("indicateurs")
+      ?.nextElementSibling?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (error) {
     return (
       <section className="section-card" id="indicateurs">
@@ -80,11 +96,11 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
 
   // Display Score Evolution to UI
   const displayScoreEvolution = () => {
-    const evolutionValue = scoreEvolution?.evolutionPercentage;
+    const evolutionValue = indicators?.evolutionPercentage;
 
     return evolutionValue === null || evolutionValue === undefined
       ? "—"
-      : `${evolutionValue >= 0 ? "+" : ""}${evolutionValue.toFixed(0)}%`;
+      : `${evolutionValue >= 0 ? "+" : ""}${Number(evolutionValue).toFixed(0)}%`;
   };
 
   const globalScore = indicators?.globalScore;
@@ -118,7 +134,7 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
 
       <div className="indicators-grid">
         {/* SCORE GLOBAL */}
-        <div className="indicator-card">
+        <div className="indicator-card clickable" onClick={goToScoreHistory}>
           <div className="indicator-card-top">
             <div className="indicator-icon-circle">
               <svg
@@ -136,12 +152,22 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
             <span className="indicator-card-title">{t("indicators.global")}</span>
           </div>
 
-          <div className="indicator-value">
-            {loading
-              ? "..."
-              : globalScore !== null && globalScore !== undefined
-                ? `${Number(globalScore).toFixed(2)} / 5`
-                : "—"}
+          <div>
+            <div className="indicator-value">
+              <span style={SCORE_STYLE}>
+                {loading
+                  ? "..."
+                  : globalScore !== null && globalScore !== undefined
+                    ? `${Number(globalScore).toFixed(2)} / 5`
+                    : "—"}
+              </span>
+            </div>
+
+            <div className="click-hint">
+              {lang === "fr"
+                ? "Cliquez pour voir l'historique →"
+                : "Click to see the history →"}
+            </div>
           </div>
         </div>
 
@@ -278,8 +304,10 @@ const IndicatorsSection = ({ onOpenFeedbackList, user }) => {
           </div>
 
           <div>
-            <div className="time-value">
-              {loading ? "..." : formatLastInteraction(indicators?.lastInteraction)}
+            <div className="indicator-value">
+              <span style={LAST_INTERACTION_STYLE}>
+                {loading ? "..." : formatLastInteraction(indicators?.lastInteraction)}
+              </span>
             </div>
 
             <div className="time-subtext">
